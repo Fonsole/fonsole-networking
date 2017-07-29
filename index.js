@@ -1,8 +1,7 @@
-import Networking from './networking';
-import NetworkingAPI from './api';
+const Networking = require('./networking');
+const NetworkingAPI = require('./api');
 
-
-export default {
+module.exports = {
   Networking,
   NetworkingAPI,
 };

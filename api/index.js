@@ -1,7 +1,7 @@
-import io from 'socket.io-client';
-import { MESSAGE_TYPE, PLATFORM } from '../enums'; // eslint-disable-line no-unused-vars
+const io = require('socket.io-client');
+const { MESSAGE_TYPE, PLATFORM } = require('../enums'); // eslint-disable-line no-unused-vars
 
-export default class NetworkingAPI {
+module.exports = class NetworkingAPI {
   /**
    * Creates an instance of NetworkingAPI.
    * @param {string} [url=host:3001] Socket.io server url. By default equals to host:3001
@@ -62,4 +62,4 @@ export default class NetworkingAPI {
       }
     }
   }
-}
+};
