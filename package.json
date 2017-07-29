@@ -1,0 +1,17 @@
+{
+  "name": "fonsole-socket",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "dependencies": {
+    "debug": "^2.6.8",
+    "express": "^4.15.3",
+    "ip": "^1.1.5",
+    "lodash": "^4.17.4",
+    "socket.io": "^2.0.3",
+    "socket.io-client": "^2.0.3"
+  },
+  "devDependencies": {},
+  "author": "",
+  "license": "ISC"
+}
