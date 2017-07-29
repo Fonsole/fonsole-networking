@@ -3,7 +3,128 @@ const SocketIO = require('socket.io');
 const debug = require('debug')('networking');
 const { MESSAGE_TYPE, PLATFORM } = require('./enums.js');
 
-const roomPasswords = {};
+const rooms = {};
+
+class Room {
+  /**
+   * Creates an instance of Room and pushes it to global list
+   *
+   * @param {Connection} hostPlayer
+   * @param {string} roomName Room name
+   * @param {?string} password Optional room password
+   * @memberof Room
+   */
+  constructor(hostConnection, roomName, password) {
+    // Add class reference to global index, so room with same name won't be created again
+    rooms[roomName] = this;
+
+    // Store room information
+    this.name = roomName;
+    this.password = password;
+
+    // Store room host connection
+    this.hostConnection = hostConnection;
+
+    // Array for connected clients
+    this.clientConnections = [];
+  }
+
+  /**
+   * 
+   *
+   * @param {Connection} client Connected client connection
+   * @param {?string} password Optional room password
+   * @returns {number} Recieved player id
+   * @memberof Room
+   */
+  join(client, password) {
+    // Room has a password and it's different form password that user sent
+    if (this.password != null && this.password !== password) {
+      client.socket.emit('room-failed', 'error_room_wrong_password');
+      return -1;
+    }
+    const id = this.clientConnections.push(client);
+    client.socket.emit('room-joined', this.name, id);
+
+    return id;
+  }
+
+  /**
+   * Returns client reference by ID
+   *
+   * @param {any} id Client ID
+   * @returns {?Connection} Client
+   * @memberof Room
+   */
+  getClientById(id) {
+    if (id === 0) return this.hostConnection;
+    return this.clientConnections[id + 1];
+  }
+
+  /**
+   * Emits socket.io event to special player
+   * 
+   * @param {any} event Sent event name
+   * @param {?Number} to Client ID
+   * @param {any} args Message arguments
+   * @memberof Room
+   */
+  emitToPlayer(event, to = -1, ...args) {
+    this.socket.emit(event, ...args);
+    this.getClientById(to).disconnectFromRoom();
+  }
+
+  /**
+   * Sends socket.io event to everyone in this room 
+   * 
+   * @param {any} event Sent event name
+   * @param {any} args Message arguments
+   * @memberof Room
+   */
+  emitToEveryone(event, ...args) {
+    this.clientConnections.forEach(client => client.socket.emit(event, ...args));
+  }
+
+  /**
+   * Sends socket.io event to everyone in this room 
+   * 
+   * @param {any} event Sent event name
+   * @param {Number} excepted Excepted from sending player
+   * @param {any} args Message arguments
+   * @memberof Room
+   */
+  emitToEveryoneExcept(event, except, ...args) {
+    this.clientConnections.forEach((client) => {
+      if (client.clientId !== except) {
+        client.socket.emit(event, ...args);
+      }
+    });
+  }
+
+  /**
+   * Removes client from connection list
+   * 
+   * @param {Connection} client Player connection
+   * @return {void}
+   * @memberof Room
+   */
+  removeClientReference(client) {
+    const clientIndex = this.clientConnections.indexOf(client);
+    this.clientConnections[clientIndex] = undefined;
+  }
+
+  /**
+   * Disconnects all clients and removes room from global list
+   *
+   * @memberof Room
+   */
+  dispose() {
+    this.hostConnection.disconnectFromRoom();
+    this.clientConnections.forEach(client => client.disconnectFromRoom());
+
+    delete rooms[this.name];
+  }
+}
 
 class Connection {
   /**
@@ -16,7 +137,8 @@ class Connection {
   constructor(socket, networking) {
     this.networking = networking;
     this.socket = socket;
-    this.roomName = '/'; // By defalut client joins to global room
+
+    this.clientId = -1;
 
     // Client send's it's platform
     socket.on('platform', (content) => {
@@ -30,24 +152,35 @@ class Connection {
     });
 
     // A client wants to join to empty room.
-    socket.on('join-room-empty', (content) => {
-      if (this.isInRoom) return; // For now players can join only one room per session
+    socket.on('open-room', (password) => {
+      if (this.isInRoom) return;
       const roomName = networking.generateEmptyRoomName();
-      const password = content.password;
-      if (roomName) this.joinRoom(roomName, password);
+      if (roomName) this.openRoom(roomName, password);
     });
 
     // A client wants to join some specific room
-    socket.on('join-room', (content) => {
-      if (this.isInRoom) return; // For now players can join only one room per session
-      const roomName = content.roomName;
-      const password = content.password;
+    socket.on('join-room', (roomName, password) => {
+      if (this.isInRoom) return;
       if (roomName) this.joinRoom(roomName, password);
     });
 
-    // Generic message type, used by games
+    // Generic message type used by games
     socket.on('game-event', (content) => {
-      socket.broadcast.to(this.roomName).emit('game-event', content);
+      if (this.isInRoom) {
+        if (content.clientId) {
+          this.room.emitToPlayer('game-event', content.clientId, {
+            sender: this.clientId,
+            event: content.event,
+            args: content.args,
+          });
+        } else {
+          this.room.emitToEveryoneExcept('game-event', this.clientId, {
+            sender: this.clientId,
+            event: content.event,
+            args: content.args,
+          });
+        }
+      }
     });
 
     // Client attempts to send login information.
@@ -62,76 +195,94 @@ class Connection {
 
   /**
    * Returns if player has joined any room
-   * 
+   *
    * @returns {Boolean} If player has joined any room
    * @memberof Connection
    */
-  isInRoom() {
-    return this.roomName !== '/';
+  get isInRoom() {
+    return this.room != null;
+  }
+
+  /**
+   * Makes client to open specific room.
+   *
+   * @param {any} roomName Specified room name
+   * @param {?string} password Optional room password
+   * @return {Boolean} Returns true if attempt to open room was successful
+   * @memberof Connection
+   */
+  openRoom(roomName, password) {
+    if (!roomName || typeof roomName !== 'string') throw new Error('Invalid room name');
+    if (roomName in rooms) {
+      // Room with this name is already exists
+      this.socket.emit('room-failed', 'error_room_exists');
+      return false;
+    }
+    // Create new room and store it's reference
+    this.room = new Room(this, roomName, password);
+    // Host always has 0 id
+    this.clientId = 0;
+    return true;
   }
 
   /**
    * Makes client to join specific room.
    *
-   * @param {any} roomName Specified room name
-   * @param {?string} password Optional room password
+   * @param {String} roomName Specified room name
+   * @param {?String} password Optional room password
    * @return {Boolean} Returns true if attempt to join was successful
    * @memberof Connection
    */
   joinRoom(roomName, password) {
     if (!roomName || typeof roomName !== 'string') throw new Error('Invalid room name');
-    // Support for private rooms
-    if (roomName in roomPasswords) {
-      // Get users connected to room
-      const roomUsers = this.networking.calculateClientsInRoomCount(roomName);
-      // Room is empty, password can be removed
-      if (!roomUsers) {
-        delete roomPasswords[roomName];
-      } else if (roomPasswords[roomName] !== password) {
-        // Password is wrong, can't connect to room.
-        // Send user a error messsage and let it retry.
-        this.message({
-          type: MESSAGE_TYPE.WARNING,
-          text: 'error_wrong_password',
-        });
-        return false;
-      }
+    if (!(roomName in rooms)) {
+      // This room not exists
+      this.socket.emit('room-failed', 'error_room_not_exists');
+      return false;
+    }
+    // Try to join to opened room and store recieved id
+    this.clientId = rooms[roomName].join(this, password);
+    if (this.clientId === -1) {
+      // Room not allowed player to join.
+      return false;
     }
 
-    // When all checks are completed we can actually put player to room
-    this.roomName = roomName;
-    this.socket.join(roomName);
-
-    this.socket.emit('room-joined', roomName);
-
-    // Send all clients information about new connection
-    if (this.isInRoom()) {
-      this.socket.to(this.roomName).emit('new-device', this.socket.id);
-    }
+    // Store room refrence
+    this.room = rooms[roomName];
 
     return true;
   }
 
   /**
-   * Sends user a message.
+   * Disconnects player from current room
    * 
-   * @param {Object} options Message options
-   * @param {!MESSAGE_TYPE} options.type Message type
-   * @param {!String} options.text Message text
-   * @param {!String} options.title Message title
+   * @returns {void}
+   * @memberof Connection
+   */
+  disconnectFromRoom() {
+    if (this.isInRoom) {
+      this.room.removeClientReference(this);
+      this.room = undefined;
+      this.clientId = -1;
+    }
+  }
+
+  /**
+   * Creates message box for player
+   * 
+   * @param {?Object} options Message options
+   * @param {?MESSAGE_TYPE} options.type Message type
+   * @param {?String} options.text Message text
+   * @param {?String} options.title Message title
    * @return {void}
    * @memberof Connection
    */
-  message(options) {
+  msgBox(options = {}) {
     this.socket.emit('popup-message', {
       type: options.type || MESSAGE_TYPE.EMPTY,
       text: options.text,
       title: options.title,
     });
-  }
-
-  disconnect() { // eslint-disable-line
-
   }
 }
 
@@ -157,6 +308,7 @@ class Networking {
    */
   listen() {
     if (this.isReady) throw new Error('Networking.listen was called already');
+
     // Creating socket.io instance
     this.socket = new SocketIO(this.port);
 
