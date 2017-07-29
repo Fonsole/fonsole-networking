@@ -5,6 +5,39 @@ const { MESSAGE_TYPE, PLATFORM } = require('./enums.js');
 
 const rooms = {};
 
+
+/**
+ * Generates random numberic name for room
+ *
+ * @param {number} [length=5] Room name length
+ * @returns {string} A random numberic string with fixed length
+ * @memberof Networking
+ */
+function generateRandomRoomName(length = 5) {
+  const min = 10 ** (length - 1);
+  const mult = min * 9;
+  return `${Math.floor(Math.random() * mult) + min}`;
+}
+
+/**
+ * Generates room name and makes sure that this room is empty.
+ * Room name length is not guaranteed.
+ *
+ * @returns {string} Numberic room name
+ * @memberof Networking
+ */
+function generateEmptyRoomName() {
+  for (let num = 5; ; num += 1) {
+    // Tries to generate room name 100 times. If all of them failed room name length increases
+    for (let i = 0; i < 100; i += 1) {
+      const name = generateRandomRoomName(num);
+      if (!(name in rooms)) {
+        return name;
+      }
+    }
+  }
+}
+
 class Room {
   /**
    * Creates an instance of Room and pushes it to global list
@@ -154,7 +187,7 @@ class Connection {
     // A client wants to join to empty room.
     socket.on('open-room', (password) => {
       if (this.isInRoom) return;
-      const roomName = networking.generateEmptyRoomName();
+      const roomName = generateEmptyRoomName();
       if (roomName) this.openRoom(roomName, password);
     });
 
@@ -344,45 +377,7 @@ class Networking {
    * @memberof Networking
    */
   addConnection(clientSocket) {
-    const connection = new Connection(clientSocket, this);
-    return this.connections.push(connection) - 1;
-  }
-
-  calculateClientsInRoomCount(name) {
-    return this.socket.clients(name).length;
-  }
-
-  /**
-   * Generates random numberic name for room
-   *
-   * @static
-   * @param {number} [length=5] Room name length
-   * @returns {string} A random numberic string with fixed length
-   * @memberof Networking
-   */
-  static generateRandomRoomName(length = 5) {
-    const min = 10 ** (length - 1);
-    const mult = min * 9;
-    return `${Math.floor(Math.random() * mult) + min}`;
-  }
-
-  /**
-   * Generates room name and makes sure that this room is empty.
-   * Room name length is not guaranteed.
-   *
-   * @returns {string} Numberic room name
-   * @memberof Networking
-   */
-  generateEmptyRoomName() {
-    for (let num = 5; ; num += 1) {
-      // Tries to generate room name 100 times. If all of them failed room name length increases
-      for (let i = 0; i < 100; i += 1) {
-        const name = Networking.generateRandomRoomName(num);
-        if (!this.calculateClientsInRoomCount(name)) {
-          return name;
-        }
-      }
-    }
+    return new Connection(clientSocket, this);
   }
 }
 module.exports = Networking;
