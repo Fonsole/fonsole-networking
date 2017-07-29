@@ -130,9 +130,8 @@ class Connection {
     });
   }
 
-  disconnect() {
-    // this.mainSocket.clients(this.roomName).length
-    // TODO if room became empty remove it from roomPasswords.
+  disconnect() { // eslint-disable-line
+
   }
 }
 
