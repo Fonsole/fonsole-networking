@@ -1,8 +1,7 @@
 {
-  "name": "fonsole-socket",
+  "name": "fonsole-networking",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
   "dependencies": {
     "debug": "^2.6.8",
     "socket.io": "^2.0.3",
