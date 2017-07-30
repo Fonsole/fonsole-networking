@@ -13,7 +13,7 @@ const rooms = {};
  * @returns {string} A random numberic string with fixed length
  * @memberof Networking
  */
-function generateRandomRoomName(length = 5) {
+function generateRandomRoomName(length = 3) {
   const min = 10 ** (length - 1);
   const mult = min * 9;
   return `${Math.floor(Math.random() * mult) + min}`;
@@ -27,7 +27,8 @@ function generateRandomRoomName(length = 5) {
  * @memberof Networking
  */
 function generateEmptyRoomName() {
-  for (let num = 5; ; num += 1) {
+  // Start generating room code from 3 digints
+  for (let num = 3; ; num += 1) {
     // Tries to generate room name 100 times. If all of them failed room name length increases
     for (let i = 0; i < 100; i += 1) {
       const name = generateRandomRoomName(num);
