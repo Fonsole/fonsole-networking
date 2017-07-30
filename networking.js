@@ -38,15 +38,11 @@ function generateEmptyRoomName() {
   }
 }
 
+// A class that is used to store room joining / opening errors
 class RoomError extends Error {
   constructor(message) {
     super(message);
     this.name = this.constructor.name;
-    if (typeof Error.captureStackTrace === 'function') {
-      Error.captureStackTrace(this, this.constructor);
-    } else {
-      this.stack = (new Error(message)).stack;
-    }
   }
 }
 
@@ -282,7 +278,7 @@ class Connection {
    * Makes client to open specific room.
    *
    * @param {any} roomName Specified room name
-   * @param {?string} password Optional room password
+   * @param {?String} password Optional room password
    * @return {Boolean} Returns true if attempt to open room was successful
    * @memberof Connection
    */
@@ -457,4 +453,5 @@ class Networking {
     return new Connection(clientSocket, this);
   }
 }
+
 module.exports = Networking;
