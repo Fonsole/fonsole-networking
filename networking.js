@@ -39,14 +39,29 @@ function generateEmptyRoomName() {
   }
 }
 
-// A class that is used to store room joining / opening errors
+/**
+ * A class that is used to handle errors, that can happen in room joining / opening
+ *
+ * @class RoomError
+ * @extends {Error}
+ */
 class RoomError extends Error {
+  /**
+   * Creates an instance of RoomError.
+   * @param {any} message Localizable error message
+   * @memberof RoomError
+   */
   constructor(message) {
     super(message);
     this.name = this.constructor.name;
   }
 }
 
+/**
+ * Room is a primary class that is used to put together connections, that have joined it.
+ *
+ * @class Room
+ */
 class Room {
   /**
    * Creates an instance of Room and pushes it to global list
@@ -184,6 +199,12 @@ class Room {
   }
 }
 
+/**
+ * A socket.io connection to one certain client.
+ * Provides functions for interacting with Networking client api.
+ *
+ * @class Connection
+ */
 class Connection {
   /**
    * Creates an instance of Connection and handles all client messages
@@ -393,6 +414,11 @@ class Connection {
   }
 }
 
+/**
+ * Main class that is responsible for handling all global connections.
+ *
+ * @class Networking
+ */
 class Networking {
   /**
    * Creates an instance of Networking.

@@ -1,7 +1,12 @@
 const io = require('socket.io-client');
 const { MESSAGE_TYPE, PLATFORM } = require('../enums'); // eslint-disable-line no-unused-vars
 
-module.exports = class NetworkingAPI {
+/**
+ * This class contains all functions, that fonsole provides for game development
+ *
+ * @class NetworkingAPI
+ */
+class NetworkingAPI {
   /**
    * Creates an instance of NetworkingAPI.
    * @param {string} [url=host:3001] Socket.io server url. By default equals to host:3001
