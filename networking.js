@@ -263,20 +263,20 @@ class Connection {
     this.clientId = -1;
 
     // A client wants to join to empty room.
-    socket.on('open-room', (password) => {
+    socket.on('room:open', (password) => {
       if (this.isInRoom) return;
       const roomName = generateEmptyRoomName();
       if (roomName) this.openRoom(roomName, password);
     });
 
     // A client wants to join some specific room
-    socket.on('join-room', (roomName, password) => {
+    socket.on('room:join', (roomName, password) => {
       if (this.isInRoom) return;
       if (roomName) this.joinRoom(roomName, password);
     });
 
     // A clients wants to leave room
-    socket.on('leave-room', () => {
+    socket.on('room:leave', () => {
       // We can't leave room, if we are not in room
       if (!this.isInRoom) return;
       this.leaveRoom();
@@ -294,18 +294,18 @@ class Connection {
     });
 
     // Generic message type used by games
-    socket.on('game-event', (message) => {
+    socket.on('game:event', (message) => {
       if (this.isInRoom) {
         if (message.clientId != null && message.clientId !== -1) {
           // Dispatch event to special client
-          this.room.emit('game-event', message.clientId, {
+          this.room.emit('game:event', message.clientId, {
             sender: this.clientId,
             event: message.event,
             args: message.args,
           });
         } else {
           // Dispatch event to whole room, except sender
-          this.room.emit('game-event', -1, [this.clientId], {
+          this.room.emit('game:event', -1, [this.clientId], {
             sender: this.clientId,
             event: message.event,
             args: message.args,
@@ -367,7 +367,7 @@ class Connection {
       // For some reason we can't create this room
       if (err instanceof RoomError) {
         // Notify user about it
-        this.socket.emit('room-status', {
+        this.socket.emit('room:status', {
           error: err.message,
         });
         return false;
@@ -378,7 +378,7 @@ class Connection {
     // Host always has 0 id
     this.clientId = 0;
     // Say client that we opened room
-    this.socket.emit('room-status', {
+    this.socket.emit('room:status', {
       name: roomName,
       clientId: this.clientId,
     });
@@ -398,7 +398,7 @@ class Connection {
     if (!roomName || typeof roomName !== 'string') throw new Error('Invalid room name');
     if (!(roomName in rooms)) {
       // This room not exists
-      this.socket.emit('room-status', {
+      this.socket.emit('room:status', {
         error: 'error_room_not_exists',
       });
       return false;
@@ -410,7 +410,7 @@ class Connection {
       // For some reason we can't join this room
       if (err instanceof RoomError) {
         // Notify user about it
-        this.socket.emit('room-status', {
+        this.socket.emit('room:status', {
           error: err.message,
         });
         return false;
@@ -423,7 +423,7 @@ class Connection {
     this.room = rooms[roomName];
 
     // Say client that we joined room
-    this.socket.emit('room-status', {
+    this.socket.emit('room:status', {
       name: roomName,
       clientId: this.clientId,
       connections: this.room.getClientConnections(),
@@ -445,7 +445,7 @@ class Connection {
       this.clientId = -1;
       this.room = undefined;
       // Notify user about it
-      this.socket.emit('room-status');
+      this.socket.emit('room:status');
     }
   }
 
@@ -460,7 +460,7 @@ class Connection {
    * @memberof Connection
    */
   msgBox(options = {}) {
-    this.socket.emit('popup-message', {
+    this.socket.emit('system:msgbox', {
       type: options.type || MESSAGE_TYPE.EMPTY,
       text: options.text,
       title: options.title,

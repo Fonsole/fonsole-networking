@@ -27,7 +27,7 @@ class NetworkingAPI {
     this.socket = io(url);
 
     // This event fires when client joins / leaves room
-    this.socket.on('room-status', (status = {}) => {
+    this.socket.on('room:status', (status = {}) => {
       if (status.roomName && status.id) {
         // Joined, save room status
         this.roomName = status.name;
@@ -42,7 +42,7 @@ class NetworkingAPI {
         this.clientConnections = {};
       }
 
-      this.localEmit('room-status', status);
+      this.localEmit('room:status', status);
     });
 
     // New client joined same room
@@ -72,13 +72,13 @@ class NetworkingAPI {
     });
 
     // Redirect all game events to listeners
-    this.socket.on('game-event', ({ sender, event, args }) => {
+    this.socket.on('game:event', ({ sender, event, args }) => {
       this.gameLocalEmit(event, sender, args);
     });
 
     // Map message event, so platform can define it itself
-    this.socket.on('popup-message', (error) => {
-      this.localEmit('popup-message', error);
+    this.socket.on('system:msgbox', (error) => {
+      this.localEmit('system:msgbox', error);
     });
   }
 
@@ -137,10 +137,10 @@ class NetworkingAPI {
    */
   openRoom(password) {
     // Send command to socket.io server
-    this.socket.emit('open-room', password);
+    this.socket.emit('room:open', password);
     // Returning promise, that will be resolved once client opens room or recieved open error
     return new Promise((resolve, reject) => {
-      this.once('room-status', (status) => {
+      this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
         if (status.clientId && status.roomName) {
           resolve(status);
@@ -161,10 +161,10 @@ class NetworkingAPI {
    */
   joinRoom(roomName, password) {
     // Send command to socket.io server
-    this.socket.emit('join-room', roomName, password);
+    this.socket.emit('room:join', roomName, password);
     // Returning promise, that will be resolved once client joins room or recieved join error
     return new Promise((resolve, reject) => {
-      this.once('room-status', (status) => {
+      this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
         if (status.clientId && status.roomName) {
           resolve(status);
@@ -184,7 +184,7 @@ class NetworkingAPI {
   leaveRoom() {
     // Leave only if we are already in some room
     if (this.isInRoom) {
-      this.socket.emit('leave-room');
+      this.socket.emit('room:leave');
     }
   }
 
@@ -248,7 +248,7 @@ class NetworkingAPI {
    * @memberof Room
    */
   gameEmit(event, to = -1, ...args) {
-    this.socket.emit('game-event', {
+    this.socket.emit('game:event', {
       clientId: to,
       args,
     });
