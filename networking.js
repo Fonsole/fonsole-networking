@@ -379,8 +379,8 @@ class Connection {
     this.clientId = 0;
     // Say client that we opened room
     this.socket.emit('room:status', {
-      name: roomName,
       clientId: this.clientId,
+      roomName,
     });
     return true;
   }
@@ -424,9 +424,9 @@ class Connection {
 
     // Say client that we joined room
     this.socket.emit('room:status', {
-      name: roomName,
-      clientId: this.clientId,
       connections: this.room.getClientConnections(),
+      clientId: this.clientId,
+      roomName,
     });
 
     return true;

@@ -140,7 +140,7 @@ class NetworkingAPI {
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
-        if (status.clientId && status.roomName) {
+        if (status.clientId != null && status.roomName != null) {
           resolve(status);
         } else { // Otherwise there should be some error
           reject(status.error || '');
@@ -198,7 +198,7 @@ class NetworkingAPI {
       // Iterate over all of them
       for (let i = 0; i < this.events[event].length; i += 1) {
         // And call each subscribed listener
-        this.events[event][i].call(this, content);
+        this.events[event][i].call(this, ...content);
       }
     }
   }
