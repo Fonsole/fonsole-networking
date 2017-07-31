@@ -77,9 +77,7 @@ class NetworkingAPI {
     });
 
     // Map message event, so platform can define it itself
-    this.socket.on('system:msgbox', (error) => {
-      this.localEmit('system:msgbox', error);
-    });
+    this.socket.on('system:msgbox', message => this.localEmit('system:msgbox', message));
   }
 
   /**
