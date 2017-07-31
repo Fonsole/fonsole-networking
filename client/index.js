@@ -280,7 +280,7 @@ class NetworkingAPI {
    */
   gameOn(event, callback) {
     // Make sure that we have array for our event
-    if (!this.gameEvents[event]) this.events[event] = [];
+    if (!this.gameEvents[event]) this.gameEvents[event] = [];
     // Push callback to listeners list and return index
     return this.gameEvents[event].push(callback) - 1;
   }
