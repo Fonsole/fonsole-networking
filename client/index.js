@@ -304,6 +304,21 @@ class NetworkingAPI {
     });
     return index;
   }
+
+  /**
+   * Exports some primary networking functions, that can be used by game api.
+   *
+   * @returns {Object} Contains .emit, .on and .once functions.
+   */
+  export() {
+    const getClientId = (() => this.clientId);
+    return {
+      emit: this.gameEmit.bind(this),
+      on: this.gameOn.bind(this),
+      once: this.gameOnce.bind(this),
+      getClientId: getClientId.bind(this),
+    };
+  }
 }
 
 module.exports = NetworkingAPI;
