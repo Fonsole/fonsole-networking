@@ -15,6 +15,7 @@ class NetworkingAPI {
    */
   constructor(url = (`${window.location.protocol}//${window.location.hostname}:3001`)) {
     // Deafults
+    this.clientConnections = {};
     this.events = {};
     this.gameEvents = {};
     this.clientId = -1;
@@ -31,24 +32,74 @@ class NetworkingAPI {
         // Joined, save room status
         this.roomName = status.name;
         this.clientId = status.clientId;
+        if (status.connections) {
+          Object.assign(this.clientConnections, status.connections);
+        }
       } else {
         // Left, clear room status
         this.roomName = '';
         this.clientId = -1;
+        this.clientConnections = {};
       }
 
       this.localEmit('room-status', status);
     });
 
+    // New client joined same room
+    this.socket.on('connections:join', (connectionId, session) => {
+      // Store session
+      this.clientConnections[connectionId] = session;
+      // Emit event, so game's can handle it
+      this.localEmit('connections:join', connectionId, session);
+    });
+
+    // Client has just disconnected from room
+    this.socket.on('connections:disconnect', (connectionId) => {
+      // Remove reference
+      this.clientConnections[connectionId] = undefined;
+      // Emit event, so game's can handle it
+      this.localEmit('connections:disconnect', connectionId);
+    });
+
+    // Desktop has changed game
+    this.socket.on('game:set', (game) => {
+      // Store current game name
+      this.game = game;
+      // Remove events subscribed in previous game
+      this.gameEvents = {};
+      // Emit this event locally, so platform can handle this change
+      this.localEmit('game:set', game);
+    });
+
     // Redirect all game events to listeners
     this.socket.on('game-event', ({ sender, event, args }) => {
-      this.gameEmit(event, sender, args);
+      this.gameLocalEmit(event, sender, args);
     });
 
     // Map message event, so platform can define it itself
     this.socket.on('popup-message', (error) => {
       this.localEmit('popup-message', error);
     });
+  }
+
+  /**
+   * Set's current room's game.
+   * Can be called only by desktop.
+   *
+   * @param {any} game
+   * @memberof NetworkingAPI
+   */
+  setGame(game) {
+    if (!game || typeof game !== 'string') throw new Error('Invalid game name');
+
+    // Game can be setted only in room
+    if (!this.isInRoom) return;
+
+    // Only desktop can update current game. Server has same check.
+    if (this.platform === PLATFORM.DESKTOP) {
+      // Send event to server, so it can notify all connections about it.
+      this.socket.emit('game:set', game);
+    }
   }
 
   /**
@@ -255,4 +306,6 @@ class NetworkingAPI {
     });
     return index;
   }
-};
+}
+
+module.exports = NetworkingAPI;

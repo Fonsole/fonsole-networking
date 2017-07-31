@@ -109,9 +109,46 @@ class Room {
     if (this.password != null && this.password !== password) {
       throw new RoomError('error_room_wrong_password');
     }
+    // Store connection reference
     const id = this.clientConnections.push(client);
+    // Send new player's session to all other clients
+    this.emit('connections:join', -1, id, id, client.sesson);
 
     return id;
+  }
+
+  /**
+   * Look ups for all connections and give it's sessions
+   *
+   * @returns {Object.<number, string>} a dictionary of clientId = session.
+   * @memberof Room
+   */
+  getClientConnections() {
+    return this.clientConnections
+      .filter(x => x != null) // Don't care about removed connections
+      .reduce((acc, connection) => {
+        // Send values in a format of id: session
+        acc[connection.id] = connection.session;
+        return acc;
+      }, {});
+  }
+
+  /**
+   * Removes client from connection list
+   *
+   * @param {Connection} client Player connection
+   * @return {void}
+   * @memberof Room
+   */
+  removeClientReference(client) {
+    const clientId = this.clientConnections.indexOf(client);
+    this.clientConnections[clientId] = undefined;
+
+    // If disconnected client is not host
+    if (clientId !== -1) {
+      // Send event to all remaining players
+      this.emit('connections:disconnect', -1, null, clientId);
+    }
   }
 
   /**
@@ -127,12 +164,11 @@ class Room {
   }
 
   /**
-   * Emits socket.io event.
-   * When clientId is -1 emits event for everyone.
-   * clientId also can be an Array of ids
+   * Emits socket.io event for a player of all players
    *
    * @param {any} event Sent event name
-   * @param {?Number|Array<Number>} clientId Client ID or Array of Client IDs
+   * @param {?Number|Array<Number>} clientId Client ID or Array of Client IDs.
+   * If equals to null or -1 emist event to everyone.
    * @param {?Number|Array<Number>} exceptId Excepted Client ID.
    * Impacts only when event is emitted for everyone (clientId is not defined or -1)
    * @param {any} args Message arguments
@@ -179,15 +215,14 @@ class Room {
   }
 
   /**
-   * Removes client from connection list
+   * Set's current game and notifies all connections about it
    *
-   * @param {Connection} client Player connection
-   * @return {void}
+   * @param {any} game
    * @memberof Room
    */
-  removeClientReference(client) {
-    const clientIndex = this.clientConnections.indexOf(client);
-    this.clientConnections[clientIndex] = undefined;
+  setGame(game) {
+    this.game = game;
+    this.emit('game:set', -1, null, game);
   }
 
   /**
@@ -221,6 +256,9 @@ class Connection {
     this.networking = networking;
     this.socket = socket;
 
+    // Client session. Can be used to keep player's game statistics between connects
+    this.sesson = generateRandomRoomName(15); // TODO, just a stub now
+
     // Client id in room
     this.clientId = -1;
 
@@ -242,6 +280,17 @@ class Connection {
       // We can't leave room, if we are not in room
       if (!this.isInRoom) return;
       this.leaveRoom();
+    });
+
+    // Desktop client has chosen game
+    socket.on('game:set', (game) => {
+      // Game can be setted only in room
+      if (!this.isInRoom) return;
+      // Only desktop can update current game
+      if (this.platform === PLATFORM.DESKTOP) {
+        // We should update game in current room
+        this.room.setGame(game);
+      }
     });
 
     // Generic message type used by games
@@ -377,6 +426,7 @@ class Connection {
     this.socket.emit('room-status', {
       name: roomName,
       clientId: this.clientId,
+      connections: this.room.getClientConnections(),
     });
 
     return true;
