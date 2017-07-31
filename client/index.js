@@ -10,7 +10,6 @@ class NetworkingAPI {
   /**
    * Creates an instance of NetworkingAPI.
    * @param {string} [url=host:3001] Socket.io server url. By default equals to host:3001
-   * @param {PLATFORM} platform Api platform
    * @memberof NetworkingAPI
    */
   constructor(url = (`${window.location.protocol}//${window.location.hostname}:3001`)) {
@@ -18,7 +17,7 @@ class NetworkingAPI {
     this.clientConnections = {};
     this.events = {};
     this.gameEvents = {};
-    this.clientId = -1;
+    this.connectionId = -1;
 
     // Store arguments for later use
     this.url = url;
@@ -31,14 +30,14 @@ class NetworkingAPI {
       if (status.roomName && status.id) {
         // Joined, save room status
         this.roomName = status.name;
-        this.clientId = status.clientId;
+        this.connectionId = status.connectionId;
         if (status.connections) {
           Object.assign(this.clientConnections, status.connections);
         }
       } else {
         // Left, clear room status
         this.roomName = '';
-        this.clientId = -1;
+        this.connectionId = -1;
         this.clientConnections = {};
       }
 
@@ -109,9 +108,9 @@ class NetworkingAPI {
    * @memberof NetworkingAPI
    */
   get platform() {
-    if (this.clientId === -1) return null; // Connection to socket is not established.
+    if (this.connectionId === -1) return null; // Connection to socket is not established.
     // Desktop always has id 0
-    return this.clientId === 0 ?
+    return this.connectionId === 0 ?
       PLATFORM.DESKTOP :
       PLATFORM.CONTROLLER;
   }
@@ -123,7 +122,7 @@ class NetworkingAPI {
    * @memberof NetworkingAPI
    */
   get isInRoom() {
-    return this.clientId !== -1;
+    return this.connectionId !== -1;
   }
 
   /**
@@ -140,7 +139,7 @@ class NetworkingAPI {
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
-        if (status.clientId != null && status.roomName != null) {
+        if (status.connectionId != null && status.roomName != null) {
           resolve(status);
         } else { // Otherwise there should be some error
           reject(status.error || '');
@@ -164,7 +163,7 @@ class NetworkingAPI {
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
-        if (status.clientId && status.roomName) {
+        if (status.connectionId && status.roomName) {
           resolve(status);
         } else { // Otherwise there should be some error
           reject(status.error || '');
@@ -247,7 +246,7 @@ class NetworkingAPI {
    */
   gameEmit(event, to = -1, ...args) {
     this.socket.emit('game:event', {
-      clientId: to,
+      connectionId: to,
       args,
     });
   }
@@ -311,12 +310,12 @@ class NetworkingAPI {
    * @returns {Object} Contains .emit, .on and .once functions.
    */
   export() {
-    const getClientId = (() => this.clientId);
+    const getConnectionId = (() => this.connectionId);
     return {
       emit: this.gameEmit.bind(this),
       on: this.gameOn.bind(this),
       once: this.gameOnce.bind(this),
-      getClientId: getClientId.bind(this),
+      getConnectionId: getConnectionId.bind(this),
     };
   }
 }

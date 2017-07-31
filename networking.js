@@ -120,7 +120,7 @@ class Room {
   /**
    * Look ups for all connections and give it's sessions
    *
-   * @returns {Object.<number, string>} a dictionary of clientId = session.
+   * @returns {Object.<number, string>} a dictionary of connection id's and sessions
    * @memberof Room
    */
   getClientConnections() {
@@ -134,20 +134,19 @@ class Room {
   }
 
   /**
-   * Removes client from connection list
+   * Removes connection from connection list
    *
-   * @param {Connection} client Player connection
+   * @param {Connection} connectionId Connection ID
    * @return {void}
    * @memberof Room
    */
-  removeClientReference(client) {
-    const clientId = this.clientConnections.indexOf(client);
-    this.clientConnections[clientId] = undefined;
+  removeConnection(connectionId) {
+    this.clientConnections[connectionId] = undefined;
 
     // If disconnected client is not host
-    if (clientId !== -1) {
+    if (connectionId !== -1) {
       // Send event to all remaining players
-      this.emit('connections:disconnect', -1, null, clientId);
+      this.emit('connections:disconnect', -1, null, connectionId);
     }
   }
 
@@ -167,26 +166,26 @@ class Room {
    * Emits socket.io event for a player of all players
    *
    * @param {any} event Sent event name
-   * @param {?Number|Array<Number>} clientId Client ID or Array of Client IDs.
+   * @param {?Number|Array<Number>} connectionId Connection ID or Array of Connection IDs.
    * If equals to null or -1 emist event to everyone.
-   * @param {?Number|Array<Number>} exceptId Excepted Client ID.
-   * Impacts only when event is emitted for everyone (clientId is not defined or -1)
+   * @param {?Number|Array<Number>} exceptId Excepted Connection ID.
+   * Impacts only when event is emitted for everyone (connectionId is not defined or -1)
    * @param {any} args Message arguments
    * @memberof Room
    */
-  emit(event, clientId = -1, exceptId, ...args) {
-    if (typeof clientId === 'number' && clientId !== -1) { // Emit event to one certain client
-      const client = this.getClientById(clientId);
+  emit(event, connectionId = -1, exceptId, ...args) {
+    if (typeof connectionId === 'number' && connectionId !== -1) { // Emit event to one certain client
+      const client = this.getClientById(connectionId);
       // Don't emit event if client with this id is not found
       if (client) client.socket.emit(event, ...args);
-    } else if (Array.isArray(clientId)) { // Emit event to a list of clients
+    } else if (Array.isArray(connectionId)) { // Emit event to a list of clients
       // Iterate over array and execute same code as above
-      clientId.forEach((id) => {
+      connectionId.forEach((id) => {
         const client = this.getClientById(id);
         // Don't emit event if client with this id is not found
         if (client) client.socket.emit(event, ...args);
       });
-    } else if (clientId == null || clientId === -1) { // Emit event to everyone
+    } else if (connectionId == null || connectionId === -1) { // Emit event to everyone
       // Store some varibales to get them only once, instead of on each iteration
       const exceptType = typeof except;
       const exceptIsArray = Array.isArray(exceptId);
@@ -194,14 +193,14 @@ class Room {
       const checkConnection = (client) => {
         if (exceptIsArray) {
           // If except is array we must make sure that current client is not included in this array
-          if (!exceptId.includes(client.clientId)) {
+          if (!exceptId.includes(client.connectionId)) {
             client.socket.emit(event, ...args);
           }
         } else if (exceptId == null || exceptId === -1) {
           // except is not defined, emit event anyway
           client.socket.emit(event, ...args);
-        } else if (exceptType === 'number' && exceptId !== client.socket.clientId) {
-          // Except is clientId. Just make sure that it not equals to client's id
+        } else if (exceptType === 'number' && exceptId !== client.socket.connectionId) {
+          // Except is connectionId. Just make sure that it not equals to client's id
           client.socket.emit(event, ...args);
         }
       };
@@ -260,7 +259,7 @@ class Connection {
     this.sesson = generateRandomRoomName(15); // TODO, just a stub now
 
     // Client id in room
-    this.clientId = -1;
+    this.connectionId = -1;
 
     // A client wants to join to empty room.
     socket.on('room:open', (password) => {
@@ -296,17 +295,17 @@ class Connection {
     // Generic message type used by games
     socket.on('game:event', (message) => {
       if (this.isInRoom) {
-        if (message.clientId != null && message.clientId !== -1) {
+        if (message.connectionId != null && message.connectionId !== -1) {
           // Dispatch event to special client
-          this.room.emit('game:event', message.clientId, {
-            sender: this.clientId,
+          this.room.emit('game:event', message.connectionId, {
+            sender: this.connectionId,
             event: message.event,
             args: message.args,
           });
         } else {
           // Dispatch event to whole room, except sender
-          this.room.emit('game:event', -1, [this.clientId], {
-            sender: this.clientId,
+          this.room.emit('game:event', -1, [this.connectionId], {
+            sender: this.connectionId,
             event: message.event,
             args: message.args,
           });
@@ -332,9 +331,9 @@ class Connection {
    * @readonly
    */
   get platform() {
-    if (this.clientId === -1) return null; // Connection to socket is not established.
+    if (this.connectionId === -1) return null; // Connection to socket is not established.
     // Desktop always has id 0
-    return this.clientId === 0 ?
+    return this.connectionId === 0 ?
       PLATFORM.DESKTOP :
       PLATFORM.CONTROLLER;
   }
@@ -346,7 +345,7 @@ class Connection {
    * @memberof Connection
    */
   get isInRoom() {
-    return this.clientId !== -1;
+    return this.connectionId !== -1;
   }
 
   /**
@@ -376,10 +375,10 @@ class Connection {
       throw err;
     }
     // Host always has 0 id
-    this.clientId = 0;
+    this.connectionId = 0;
     // Say client that we opened room
     this.socket.emit('room:status', {
-      clientId: this.clientId,
+      connectionId: this.connectionId,
       roomName,
     });
     return true;
@@ -405,7 +404,7 @@ class Connection {
     }
     // Try to join to opened room and store recieved id
     try {
-      this.clientId = rooms[roomName].join(this, password);
+      this.connectionId = rooms[roomName].join(this, password);
     } catch (err) {
       // For some reason we can't join this room
       if (err instanceof RoomError) {
@@ -425,7 +424,7 @@ class Connection {
     // Say client that we joined room
     this.socket.emit('room:status', {
       connections: this.room.getClientConnections(),
-      clientId: this.clientId,
+      connectionId: this.connectionId,
       roomName,
     });
 
@@ -441,8 +440,10 @@ class Connection {
   leaveRoom() {
     // Leave only if we are already in some room
     if (this.isInRoom) {
+      // Remove connection reference from room
+      this.room.removeConnection(this.connectionId);
       // Reset room status
-      this.clientId = -1;
+      this.connectionId = -1;
       this.room = undefined;
       // Notify user about it
       this.socket.emit('room:status');
