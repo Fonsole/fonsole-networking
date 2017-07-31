@@ -163,8 +163,8 @@ class NetworkingAPI {
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
-        if (status.connectionId && status.roomName) {
-          resolve(status);
+        if (status.connectionId != null && status.roomName != null) {
+          resolve(status.roomName, status.connectionId);
         } else { // Otherwise there should be some error
           reject(status.error || '');
         }
