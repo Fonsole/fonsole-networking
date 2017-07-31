@@ -154,8 +154,8 @@ class Room {
       // Store some varibales to get them only once, instead of on each iteration
       const exceptType = typeof except;
       const exceptIsArray = Array.isArray(exceptId);
-      // Iterate over all connected clients
-      this.clientConnections.forEach((client) => {
+      // This function checks a connection and emits event for it, if it's not excluded
+      const checkConnection = (client) => {
         if (exceptIsArray) {
           // If except is array we must make sure that current client is not included in this array
           if (!exceptId.includes(client.clientId)) {
@@ -168,7 +168,11 @@ class Room {
           // Except is clientId. Just make sure that it not equals to client's id
           client.socket.emit(event, ...args);
         }
-      });
+      };
+      // Iterate over all connected clients
+      this.clientConnections.forEach(checkConnection);
+      // clientConnections not contains host, so call checkConnection for it separately
+      checkConnection(this.hostConnection);
     } else {
       throw new Error('Bad arguments');
     }
