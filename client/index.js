@@ -1,5 +1,5 @@
-const io = require('socket.io-client');
-const { MESSAGE_TYPE, PLATFORM } = require('../enums'); // eslint-disable-line no-unused-vars
+import io from 'socket.io-client';
+import { MESSAGE_TYPE, PLATFORM } from '../enums'; // eslint-disable-line no-unused-vars
 
 /**
  * This class contains all functions, that fonsole provides for game development
@@ -320,4 +320,4 @@ class NetworkingAPI {
   }
 }
 
-module.exports = NetworkingAPI;
+export default NetworkingAPI;
