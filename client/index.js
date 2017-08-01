@@ -101,7 +101,7 @@ class NetworkingAPI {
 
   /**
    * Get's a platform, where this api is runned, based on client id,
-   * becasuse desktop clients are always hosts
+   * because desktop clients are always hosts
    *
    * @returns {?PLATFORM} Current platform. Can be null, if socket is not connected yet.
    * @readonly
@@ -129,7 +129,8 @@ class NetworkingAPI {
    * Makes client to open specific room and become it's host
    *
    * @param {?string} password Optional room password
-   * @returns {Promise}
+   * @returns {Promise} A promise that will be resolved when client successfully joins room
+   * A resolved object contains { roomName, connectionId } properties
    * @memberof NetworkingAPI
    */
   openRoom(password) {
@@ -140,7 +141,7 @@ class NetworkingAPI {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
         if (status.connectionId != null && status.roomName != null) {
-          resolve(status.roomName, status.connectionId);
+          resolve(status);
         } else { // Otherwise there should be some error
           reject(status.error || '');
         }
@@ -153,7 +154,8 @@ class NetworkingAPI {
    *
    * @param {String} roomName Specified room name
    * @param {?String} password Optional room password
-   * @returns {void}
+   * @returns {Promise} A promise that will be resolved when client successfully joins room
+   * A resolved object contains { roomName, connectionId, connections } properties
    * @memberof NetworkingAPI
    */
   joinRoom(roomName, password) {
@@ -164,7 +166,7 @@ class NetworkingAPI {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
         if (status.connectionId != null && status.roomName != null) {
-          resolve(status.roomName, status.connectionId);
+          resolve(status);
         } else { // Otherwise there should be some error
           reject(status.error || '');
         }
