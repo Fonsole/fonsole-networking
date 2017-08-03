@@ -137,6 +137,7 @@ class NetworkingAPI {
     // Send command to socket.io server
     this.socket.emit('room:open', password);
     // Returning promise, that will be resolved once client opens room or recieved open error
+    // eslint-disable-next-line promise/avoid-new
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
@@ -162,6 +163,7 @@ class NetworkingAPI {
     // Send command to socket.io server
     this.socket.emit('room:join', roomName, password);
     // Returning promise, that will be resolved once client joins room or recieved join error
+    // eslint-disable-next-line promise/avoid-new
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
         // If we recieved client id and room then we actually joined room
@@ -208,30 +210,30 @@ class NetworkingAPI {
    * Subscribe to general client events.
    *
    * @param {string} event Subscribed event name
-   * @param {function} callback Callback function
+   * @param {function} handler Callback function
    * @returns {Number} Listener index in event array
    * @memberof NetworkingAPI
    */
-  on(event, callback) {
+  on(event, handler) {
     // Make sure that we have array for our event
     if (!this.events[event]) this.events[event] = [];
     // Push callback to listeners list and return index
-    return this.events[event].push(callback) - 1;
+    return this.events[event].push(handler) - 1;
   }
 
   /**
    * Subscribe to next fired event
    *
    * @param {string} event Subscribed event name
-   * @param {function} callback Callback function
+   * @param {function} handler Callback function
    * @returns {Number} Listener index in event array
    * @memberof NetworkingAPI
    */
-  once(event, callback) {
+  once(event, handler) {
     // Create event with proxy function and store it's index
     const index = this.on(event, (...args) => {
       // Call callback with all event arguments
-      callback(...args);
+      handler(...args);
       // Unsubscribe listener after event was fired
       this.events[event][index] = undefined;
     });
@@ -276,30 +278,30 @@ class NetworkingAPI {
    * Subscribe to general game events.
    *
    * @param {string} event Subscribed event name
-   * @param {function} callback Callback function. Called with (senderId, ...other arguments)
+   * @param {function} handler Callback function. Called with (senderId, ...other arguments)
    * @returns {Number} Listener index in event array
    * @memberof NetworkingAPI
    */
-  gameOn(event, callback) {
+  gameOn(event, handler) {
     // Make sure that we have array for our event
     if (!this.gameEvents[event]) this.gameEvents[event] = [];
     // Push callback to listeners list and return index
-    return this.gameEvents[event].push(callback) - 1;
+    return this.gameEvents[event].push(handler) - 1;
   }
 
   /**
    * Subscribe to next dispatched game event.
    *
    * @param {string} event Subscribed event name
-   * @param {function} callback Callback function. Called with (senderId, ...other arguments)
+   * @param {function} handler Callback function. Called with (senderId, ...other arguments)
    * @returns {Number} Listener index in event array
    * @memberof NetworkingAPI
    */
-  gameOnce(event, callback) {
+  gameOnce(event, handler) {
     // Create event with proxy function and store it's index
     const index = this.gameOn(event, (...args) => {
       // Call callback with all event arguments
-      callback(...args);
+      handler(...args);
       // Unsubscribe listener after event was fired
       this.gameEvents[event][index] = undefined;
     });

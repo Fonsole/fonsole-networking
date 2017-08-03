@@ -9,16 +9,19 @@ module.exports = {
     browser: true,
     node: true,
   },
-  extends: 'airbnb-base',
-  // required to lint *.vue files
-  plugins: [
-    'html',
+  extends: [
+    'airbnb-base',
+    'plugin:promise/recommended',
+    'plugin:unicorn/recommended',
   ],
-  // add your custom rules here
+  plugins: [
+    'promise',
+    'unicorn',
+  ],
   rules: {
     // allow optionalDependencies
     'import/no-extraneous-dependencies': ['error', {
-      'optionalDependencies': ['test/unit/index.js']
+      optionalDependencies: ['test/unit/index.js'],
     }],
     // allow debugger during development
     'no-debugger': process.env.NODE_ENV === 'production' ? 2 : 0,
@@ -28,5 +31,15 @@ module.exports = {
     'no-param-reassign': 0,
     'global-require': 0,
     'linebreak-style': 0,
+
+    // eslint-plugin-promise
+    'promise/prefer-await-to-then': 2,
+    'promise/prefer-await-to-callbacks': 2,
+
+    // eslint-plugin-unicorn
+    'unicorn/filename-case': 0,
+    'unicorn/explicit-length-check': [0, {
+      'non-zero': 'greater-than',
+    }],
   },
 };
