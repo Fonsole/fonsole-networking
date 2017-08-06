@@ -2,6 +2,9 @@
   "name": "fonsole-networking",
   "version": "1.0.0",
   "description": "",
+  "scripts": {
+    "postmerge": "node hooks/postmerge.js"
+  },
   "dependencies": {
     "debug": "^2.6.8",
     "socket.io": "^2.0.3",
@@ -12,7 +15,8 @@
     "eslint-config-airbnb-base": "^11.3.1",
     "eslint-plugin-import": "^2.7.0",
     "eslint-plugin-promise": "^3.5.0",
-    "eslint-plugin-unicorn": "^2.1.2"
+    "eslint-plugin-unicorn": "^2.1.2",
+    "husky": "^0.14.3"
   },
   "author": "",
   "license": "ISC"
