@@ -7,27 +7,27 @@ const rooms = {};
 
 
 /**
- * Generates random numberic name for room
+ * Generates random numeric name for room
  *
  * @param {number} [length=5] Room name length
- * @returns {string} A random numberic string with fixed length
+ * @returns {string} A random numeric string with fixed length
  * @memberof Networking
  */
 function generateRandomRoomName(length = 3) {
   const min = 10 ** (length - 1);
-  const mult = min * 9;
-  return `${Math.floor(Math.random() * mult) + min}`;
+  const multiplier = min * 9;
+  return `${Math.floor(Math.random() * multiplier) + min}`;
 }
 
 /**
  * Generates room name and makes sure that this room is empty.
  * Room name length is not guaranteed.
  *
- * @returns {string} Numberic room name
+ * @returns {string} Numeric room name
  * @memberof Networking
  */
 function generateEmptyRoomName() {
-  // Start generating room code from 3 digints
+  // Start generating room code from 3 digits
   for (let num = 3; ; num += 1) {
     // Tries to generate room name 100 times. If all of them failed room name length increases
     for (let i = 0; i < 100; i += 1) {
@@ -101,7 +101,7 @@ class Room {
    * @param {?string} password Optional room password
    * @throws {RoomError} Can throw errors if user is not authorized to join this room.
    * Error message is localizable string, that can be sent to client
-   * @returns {number} Recieved player id
+   * @returns {number} Received player id
    * @memberof Room
    */
   join(client, password) {
@@ -112,7 +112,7 @@ class Room {
     // Store connection reference
     const id = this.clientConnections.push(client);
     // Send new player's session to all other clients
-    this.emit('connections:join', -1, id, id, client.sesson);
+    this.emit('connections:join', -1, id, id, client.session);
 
     return id;
   }
@@ -167,7 +167,7 @@ class Room {
    *
    * @param {any} event Sent event name
    * @param {?Number|Array<Number>} connectionId Connection ID or Array of Connection IDs.
-   * If equals to null or -1 emist event to everyone.
+   * If equals to null or -1 emits event to everyone.
    * @param {?Number|Array<Number>} exceptId Excepted Connection ID.
    * Impacts only when event is emitted for everyone (connectionId is not defined or -1)
    * @param {any} args Message arguments
@@ -186,7 +186,7 @@ class Room {
         if (client) client.socket.emit(event, ...args);
       });
     } else if (connectionId == null || connectionId === -1) { // Emit event to everyone
-      // Store some varibales to get them only once, instead of on each iteration
+      // Store some variables to get them only once, instead of on each iteration
       const exceptType = typeof except;
       const exceptIsArray = Array.isArray(exceptId);
       // This function checks a connection and emits event for it, if it's not excluded
@@ -256,7 +256,7 @@ class Connection {
     this.socket = socket;
 
     // Client session. Can be used to keep player's game statistics between connects
-    this.sesson = generateRandomRoomName(15); // TODO, just a stub now
+    this.session = generateRandomRoomName(15); // TODO, just a stub now
 
     // Client id in room
     this.connectionId = -1;
@@ -283,7 +283,7 @@ class Connection {
 
     // Desktop client has chosen game
     socket.on('game:set', (game) => {
-      // Game can be setted only in room
+      // Game can be updated only in room
       if (!this.isInRoom) return;
       // Only desktop can update current game
       if (this.platform === PLATFORM.DESKTOP) {
@@ -314,7 +314,7 @@ class Connection {
     });
 
     // Client attempts to send login information.
-    // Probably later we can use RESTful api for this
+    // Probably later we can use restful api for this
     socket.on('login', (content) => {
       debug('login: ', content.username, content.password);
       socket.emit('login', {
@@ -324,8 +324,8 @@ class Connection {
   }
 
   /**
-   * Get's a platform, where this api is runned, based on client id,
-   * becasuse desktop clients are always hosts
+   * Returns a platform, where this api is executed, based on client id,
+   * because desktop clients are always hosts
    *
    * @returns {?PLATFORM} Current platform. Can be null, if socket is not connected yet.
    * @readonly
@@ -402,7 +402,7 @@ class Connection {
       });
       return false;
     }
-    // Try to join to opened room and store recieved id
+    // Try to join to opened room and store received id
     try {
       this.connectionId = rooms[roomName].join(this, password);
     } catch (err) {
@@ -418,7 +418,7 @@ class Connection {
       throw err;
     }
 
-    // Store room refrence
+    // Store room reference
     this.room = rooms[roomName];
 
     // Say client that we joined room

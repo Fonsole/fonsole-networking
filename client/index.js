@@ -13,7 +13,7 @@ class NetworkingAPI {
    * @memberof NetworkingAPI
    */
   constructor(url = (`${window.location.protocol}//${window.location.hostname}:3001`)) {
-    // Deafults
+    // Defaults
     this.clientConnections = {};
     this.events = {};
     this.gameEvents = {};
@@ -89,7 +89,7 @@ class NetworkingAPI {
   setGame(game) {
     if (!game || typeof game !== 'string') throw new Error('Invalid game name');
 
-    // Game can be setted only in room
+    // Game can be updated only in room
     if (!this.isInRoom) return;
 
     // Only desktop can update current game. Server has same check.
@@ -100,7 +100,7 @@ class NetworkingAPI {
   }
 
   /**
-   * Get's a platform, where this api is runned, based on client id,
+   * Returns a platform, where this api is executed, based on client id,
    * because desktop clients are always hosts
    *
    * @returns {?PLATFORM} Current platform. Can be null, if socket is not connected yet.
@@ -136,11 +136,11 @@ class NetworkingAPI {
   openRoom(password) {
     // Send command to socket.io server
     this.socket.emit('room:open', password);
-    // Returning promise, that will be resolved once client opens room or recieved open error
+    // Returning promise, that will be resolved once client opens room or received open error
     // eslint-disable-next-line promise/avoid-new
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
-        // If we recieved client id and room then we actually joined room
+        // If we received client id and room then we actually joined room
         if (status.connectionId != null && status.roomName != null) {
           resolve(status);
         } else { // Otherwise there should be some error
@@ -162,11 +162,11 @@ class NetworkingAPI {
   joinRoom(roomName, password) {
     // Send command to socket.io server
     this.socket.emit('room:join', roomName, password);
-    // Returning promise, that will be resolved once client joins room or recieved join error
+    // Returning promise, that will be resolved once client joins room or received join error
     // eslint-disable-next-line promise/avoid-new
     return new Promise((resolve, reject) => {
       this.once('room:status', (status) => {
-        // If we recieved client id and room then we actually joined room
+        // If we received client id and room then we actually joined room
         if (status.connectionId != null && status.roomName != null) {
           resolve(status);
         } else { // Otherwise there should be some error
