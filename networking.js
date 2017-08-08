@@ -1,43 +1,8 @@
 const SocketIO = require('socket.io');
-// const _ = require('lodash');
 const debug = require('debug')('networking');
-const { MESSAGE_TYPE, PLATFORM } = require('./enums.js');
+const { MESSAGE_TYPE, PLATFORM, ROOM_SETTINGS } = require('./enums.js');
 
 const rooms = {};
-
-
-/**
- * Generates random numeric name for room
- *
- * @param {number} [length=5] Room name length
- * @returns {string} A random numeric string with fixed length
- * @memberof Networking
- */
-function generateRandomRoomName(length = 3) {
-  const min = 10 ** (length - 1);
-  const multiplier = min * 9;
-  return `${Math.floor(Math.random() * multiplier) + min}`;
-}
-
-/**
- * Generates room name and makes sure that this room is empty.
- * Room name length is not guaranteed.
- *
- * @returns {string} Numeric room name
- * @memberof Networking
- */
-function generateEmptyRoomName() {
-  // Start generating room code from 3 digits
-  for (let num = 3; ; num += 1) {
-    // Tries to generate room name 100 times. If all of them failed room name length increases
-    for (let i = 0; i < 100; i += 1) {
-      const name = generateRandomRoomName(num);
-      if (!(name in rooms)) {
-        return name;
-      }
-    }
-  }
-}
 
 /**
  * A class that is used to handle errors, that can happen in room joining / opening
@@ -83,6 +48,8 @@ class Room {
     // Add class reference to global index, so room with same name won't be created again
     rooms[roomName] = this;
 
+    console.log(`Opened new room: ${roomName}, by 0 client - session: ${hostConnection.session}`);
+
     // Store room information
     this.name = roomName;
     this.password = password;
@@ -114,6 +81,8 @@ class Room {
     // Send new player's session to all other clients
     this.emit('connections:join', -1, id, id, client.session);
 
+    console.log(`Client (id: ${id}, session: ${client.session}) has joined room '${this.name}'`);
+
     return id;
   }
 
@@ -143,8 +112,9 @@ class Room {
   removeConnection(connectionId) {
     this.clientConnections[connectionId] = undefined;
 
-    // If disconnected client is not host
-    if (connectionId !== -1) {
+    // If disconnected client is not host,
+    // otherwise they will notice it just by disconnecting from room
+    if (connectionId !== 0) {
       // Send event to all remaining players
       this.emit('connections:disconnect', -1, null, connectionId);
     }
@@ -205,7 +175,7 @@ class Room {
         }
       };
       // Iterate over all connected clients
-      this.clientConnections.forEach(checkConnection);
+      this.clientConnections.filter(x => x != null).forEach(checkConnection);
       // clientConnections not contains host, so call checkConnection for it separately
       checkConnection(this.hostConnection);
     } else {
@@ -230,8 +200,10 @@ class Room {
    * @memberof Room
    */
   dispose() {
-    this.hostConnection.leaveRoom();
-    this.clientConnections.forEach(client => client.leaveRoom());
+    // Kick all valid clients
+    this.clientConnections.filter(x => x != null).forEach(client => client.leaveRoom(true));
+
+    console.log(`Room disposed: ${this.name}`);
 
     delete rooms[this.name];
   }
@@ -254,17 +226,25 @@ class Connection {
   constructor(socket, networking) {
     this.networking = networking;
     this.socket = socket;
-
     // Client session. Can be used to keep player's game statistics between connects
-    this.session = generateRandomRoomName(15); // TODO, just a stub now
+    this.session = socket.id; // TODO, just a stub now
 
     // Client id in room
     this.connectionId = -1;
 
+    console.log(`Opened new connection - session: ${this.session}`);
+
+    // Handle disconnect event
+    socket.on('disconnect', () => {
+      this.dispose();
+      console.log(`Disconnected - id: ${this.connectionId}, session: ${this.session}`);
+    });
+
     // A client wants to join to empty room.
     socket.on('room:open', (password) => {
       if (this.isInRoom) return;
-      const roomName = generateEmptyRoomName();
+      // eslint-disable-next-line no-use-before-define
+      const roomName = Networking.generateEmptyRoomName();
       if (roomName) this.openRoom(roomName, password);
     });
 
@@ -278,7 +258,7 @@ class Connection {
     socket.on('room:leave', () => {
       // We can't leave room, if we are not in room
       if (!this.isInRoom) return;
-      this.leaveRoom();
+      this.leaveRoom(true);
     });
 
     // Desktop client has chosen game
@@ -433,21 +413,40 @@ class Connection {
 
   /**
    * Makes client to leave current room
+   * If it's host connection room will be closed.
    *
+   * @param {boolean} notify - Should we send user a message about it?
    * @returns {void}
    * @memberof Connection
    */
-  leaveRoom() {
+  leaveRoom(notify) {
     // Leave only if we are already in some room
     if (this.isInRoom) {
       // Remove connection reference from room
       this.room.removeConnection(this.connectionId);
+
+      // If disconnected connection is host we should close room.
+      if (this.connectionId === 0) {
+        this.room.dispose();
+      }
+
       // Reset room status
       this.connectionId = -1;
       this.room = undefined;
       // Notify user about it
-      this.socket.emit('room:status');
+      if (notify) this.socket.emit('room:status');
     }
+  }
+
+  /**
+   * Removes all connection references, so we can be sure that this class will be noticed by gc.
+   *
+   * @memberof Connection
+   */
+  dispose() {
+    // Leave room, so reference can be removed from it.
+    this.leaveRoom(false);
+    this.socket = undefined;
   }
 
   /**
@@ -479,12 +478,10 @@ class Networking {
    * Creates an instance of Networking.
    * @param {Object} options Options
    * @param {!Number} options.port Socket.io server port
-   * @param {Boolean} options.isLocal Is that server hosted on local network?
    * @memberof Networking
    */
   constructor(options = {}) {
     this.connections = [];
-    this.isLocal = options.isLocal != null ? options.isLocal : false;
     this.port = options.port;
   }
 
@@ -533,6 +530,41 @@ class Networking {
    */
   addConnection(clientSocket) {
     return new Connection(clientSocket, this);
+  }
+
+  /**
+   * Generates random numeric name for room
+   *
+   * @static
+   * @param {?number} length - Room name length
+   * @returns {string} - A random numeric string with fixed length
+   * @memberof Networking
+   */
+  static generateRandomRoomName(length = ROOM_SETTINGS.LENGTH_MIN) {
+    const min = 10 ** (length - 1);
+    const multiplier = min * 9;
+    return `${Math.floor(Math.random() * multiplier) + min}`;
+  }
+
+  /**
+   * Generates room name and makes sure that this room is empty.
+   * Room name length is not guaranteed.
+   *
+   * @static
+   * @returns {string} - Numeric room name
+   * @memberof Networking
+   */
+  static generateEmptyRoomName() {
+    // Start generating room code from 3 digits
+    for (let num = 3; ; num += 1) {
+      // Tries to generate room name 100 times. If all of them failed room name length increases
+      for (let i = 0; i < 100; i += 1) {
+        const name = Networking.generateRandomRoomName(num);
+        if (!(name in rooms)) {
+          return name;
+        }
+      }
+    }
   }
 }
 
